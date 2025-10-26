@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="UTF-8" />
+    <title>🌍 Multilingual verb conjugator</title>
+    <!-- jsPDF for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+      /* Base container scales nicely */
+.container {
+  width: 95%;
+  max-width: 1000px;
+}
+
+/* HUD wraps on small screens */
+#hud {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.6rem;
+}
+@media (max-width: 1024px) {
+  #hud { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 640px) {
+  #hud { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 420px) {
+  #hud { grid-template-columns: 1fr; }
+}
+
+/* Form rows stack on small screens */
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+}
+@media (max-width: 768px) {
+  .row { grid-template-columns: 1fr; }
+}
+
+/* Comfortable tap targets on mobile */
+select, input, button {
+  font-size: 1rem;
+  padding: 0.8rem;
+}
+@media (max-width: 420px) {
+  select, input, button {
+    font-size: 0.95rem;
+    padding: 0.7rem;
+  }
+}
+
+/* Result box spacing tweaks */
+#result {
+  font-size: 1.05rem;
+  min-height: 2.4rem;
+}
+
+/* Summary table becomes horizontally scrollable on small screens */
+#summary {
+  overflow-x: auto;
+}
+#summary table {
+  min-width: 600px; /* prevents columns from crushing on very small screens */
+}
+
+/* Responsive ad banner */
+#adContainer {
+  padding: 1rem;
+}
+#adImage {
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  border-radius: 8px;
+  transition: opacity 0.5s;
+  display: inline-block;
+}
+@media (min-width: 1200px) {
+  #adImage { max-width: 500px; }
+}
+
+/* Gentle typography scaling */
+h1 { font-size: 1.8rem; }
+@media (max-width: 640px) {
+  h1 { font-size: 1.5rem; }
+}
+      body {
+        font-family: "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #1e3c72, #2a5298);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+        color: #fff;
+      }
+      .container {
+        background: #ffffffee;
+        color: #222;
+        margin-top: 30px;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        width: 95%;
+        max-width: 1000px;
+      }
+      h1 {
+        text-align: center;
+        color: #1e3c72;
+      }
+      #hud {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.6rem;
+        background: #f5f7fa;
+        border: 1px solid #e4e7eb;
+        color: #333;
+        padding: 0.6rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+      }
+      #hud span {
+        font-weight: 600;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.8rem;
+      }
+      label {
+        display: block;
+        margin: 0.5rem 0;
+        font-weight: 600;
+      }
+      select,
+      input {
+        width: 100%;
+        padding: 0.6rem;
+        margin-top: 0.3rem;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        font-size: 1rem;
+      }
+      button {
+        margin-top: 1rem;
+        padding: 0.8rem 1.2rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 700;
+        background: #2a5298;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #1e3c72;
+      }
+      #result {
+        margin-top: 1rem;
+        font-size: 1.1rem;
+        text-align: center;
+        padding: 0.7rem;
+        border-radius: 8px;
+        min-height: 2.4rem;
+        border: 1px solid transparent;
+      }
+      .ok {
+        background: #c8e6c9;
+        color: #256029;
+        border-color: #a5d6a7;
+        animation: bounce 0.5s;
+      }
+      .wrong {
+        background: #ffcdd2;
+        color: #b71c1c;
+        border-color: #ef9a9a;
+        animation: shake 0.5s;
+      }
+      @keyframes bounce {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-8px);
+        }
+      }
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        20% {
+          transform: translateX(-6px);
+        }
+        40% {
+          transform: translateX(6px);
+        }
+        60% {
+          transform: translateX(-4px);
+        }
+        80% {
+          transform: translateX(4px);
+        }
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 0.4rem;
+        text-align: center;
+      }
+      footer {
+        margin-top: 2rem;
+        text-align: center;
+        font-size: 0.85rem;
+        color: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🌍 Learning Any Language and Josbrevar07 present,</h1>
+      <h1>Multilingual Verb Conjugator</h1>
+      <h5>Choose a language, pick a verb, then select the subject or pronoun. Type the correct conjugation and hit the blue ‘Check & Pronounce’ button to see if you’re right. Test your language skills while the countdown runs! When time is up, you can save your full results as a PDF report.”
+.</h5>
+
+      <div id="hud">
+        <span id="score">Score: 0</span>
+        <span id="streak">Streak: 0</span>
+        <span id="timer">Time left: 05:00</span>
+        <span id="best">Best: 0</span>
+        <span id="status">Session: Running</span>
+      </div>
+
+      <div class="row">
+        <div>
+          <label
+            >Language:
+            <select id="language" onchange="loadRound()">
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="fr">Français</option>
+              <option value="pt">Português</option>
+              <option value="de">Deutsch</option>
+              <option value="it">Italiano</option>
+              <option value="ru">Русский</option>
+              <option value="zh">中文</option>
+              <option value="ja">日本語</option>
+              <option value="ko">한국어</option>
+            </select>
+          </label>
+        </div>
+        <div>
+          <label
+            >Verb:
+            <select id="verb"></select>
+          </label>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label
+            >Subject:
+            <select id="subject"></select>
+          </label>
+        </div>
+        <div>
+          <label
+            >Form:
+            <input id="verbForm" placeholder="Type the correct form…" />
+          </label>
+        </div>
+      </div>
+
+      <button id="checkBtn" onclick="check()">Check & 🔊 Pronounce</button>
+      <button onclick="exportPDF()">📑 Export Session Report</button>
+      <div id="result"></div>
+      <div id="summary"></div>
+
+      <footer>
+        Designed by: Josbrevar07
+        <div
+          style="
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+          "
+        >
+          <a
+            href="https://walink.co/341b8e"
+            target="_blank"
+            style="text-decoration: none; color: inherit"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="bi bi-whatsapp"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"
+              />
+            </svg>
+          </a>
+          <a
+            href="https://www.instagram.com/josbrevar07/"
+            target="_blank"
+            style="text-decoration: none; color: inherit"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="bi bi-instagram"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.9 3.9 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.5 2.5 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233s.008-2.388.046-3.231c.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92m-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217m0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334"
+              />
+            </svg>
+          </a>
+          <a
+            href="https://www.facebook.com/josue.brenesvargas"
+            target="_blank"
+            style="text-decoration: none; color: inherit"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="bi bi-facebook"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.93 2.86 7.19 6.58 7.88v-5.57H4.69V8h1.89V6.24c0-1.87 1.1-2.89 2.78-2.89.81 0 1.66.15 1.66.15v1.83h-.94c-.93 0-1.22.58-1.22 1.17V8h2.08l-.33 2.31H8.87v5.57C12.14 15.19 16 11.93 16 8c0-4.42-3.58-8-8-8z"
+              />
+            </svg>
+          </a>
+          <a
+            href="https://www.google.co.cr/?gws_rd=ssl"
+            target="_blank"
+            style="text-decoration: none; color: inherit"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="bi bi-google"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M15.545 6.558a9.4 9.4 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.7 7.7 0 0 1 5.352 2.082l-2.284 2.284A4.35 4.35 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.8 4.8 0 0 0 0 3.063h.003c.635 1.893 2.405 3.301 4.492 3.301 1.078 0 2.004-.276 2.722-.764h-.003a3.7 3.7 0 0 0 1.599-2.431H8v-3.08z"
+              />
+            </svg>
+          </a>
+          <a
+            href="https://www.youtube.com/@josbrevar0773"
+            target="_blank"
+            style="text-decoration: none; color: inherit"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="bi bi-youtube"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M8.051 1.999h.089c.822.003 4.987.033 6.11.335a2.01 2.01 0 0 1 1.415 1.42c.101.38.172.883.22 1.402l.01.104.022.26.008.104c.065.914.073 1.77.074 1.957v.075c-.001.194-.01 1.108-.082 2.06l-.008.105-.009.104c-.05.572-.124 1.14-.235 1.558a2.01 2.01 0 0 1-1.415 1.42c-1.16.312-5.569.334-6.18.335h-.142c-.309 0-1.587-.006-2.927-.052l-.17-.006-.087-.004-.171-.007-.171-.007c-1.11-.049-2.167-.128-2.654-.26a2.01 2.01 0 0 1-1.415-1.419c-.111-.417-.185-.986-.235-1.558L.09 9.82l-.008-.104A31 31 0 0 1 0 7.68v-.123c.002-.215.01-.958.064-1.778l.007-.103.003-.052.008-.104.022-.26.01-.104c.048-.519.119-1.023.22-1.402a2.01 2.01 0 0 1 1.415-1.42c.487-.13 1.544-.21 2.654-.26l.17-.007.172-.006.086-.003.171-.007A100 100 0 0 1 7.858 2zM6.4 5.209v4.818l4.157-2.408z"
+              />
+            </svg>
+          </a>
+          <a
+            href="https://www.microsoft.com/es-es/microsoft-365/outlook/email-and-calendar-software-microsoft-outlook?deeplink=%2fowa%2f&sdf=0"
+            target="_blank"
+            style="text-decoration: none; color: inherit"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="bi bi-microsoft"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M7.462 0H0v7.19h7.462zM16 0H8.538v7.19H16zM7.462 8.211H0V16h7.462zm8.538 0H8.538V16H16z"
+              />
+            </svg>
+          </a>
+          <a
+            href="https://josbrevar07.github.io/blog_del_profe_josue_2.0/"
+            target="_blank"
+            style="text-decoration: none; color: inherit"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="bi bi-browser-chrome"
+              viewBox="0 0 16 16"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M16 8a8 8 0 0 1-7.022 7.94l1.902-7.098a3 3 0 0 0 .05-1.492A3 3 0 0 0 10.237 6h5.511A8 8 0 0 1 16 8M0 8a8 8 0 0 0 7.927 8l1.426-5.321a3 3 0 0 1-.723.255 3 3 0 0 1-1.743-.147 3 3 0 0 1-1.043-.7L.633 4.876A8 8 0 0 0 0 8m5.004-.167L1.108 3.936A8.003 8.003 0 0 1 15.418 5H8.066a3 3 0 0 0-1.252.243 2.99 2.99 0 0 0-1.81 2.59M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4"
+              />
+            </svg>
+          </a>
+        </div>
+        ©2025. Copyright.</p>
+      <p>All rights reserved.</p>
+      <div class="footer-links">
+        <p>
+          <a href="https://clases-de-manejo-personalizadas.com/"
+            >Clases de manejo personalizadas, página web.</a
+          >
+        </p>
+        <p>
+          <a href="https://josbrevar07.github.io/servicio_de_impresiones/"
+            >Servicio de impresiones a domicilio, página web.</a
+          >
+        </p>
+        <p>
+          <a href="https://josbrevar07.github.io/learning_any_language/"
+            >Learning Any Language, página web.</a
+          >
+        </p>
+        <p>
+          <a href="https://www.ivettenutricionista.com/"
+            >Consultorio de Nutrición, página web.</a
+          >
+        </p>
+      </div>
+      </footer>
+      <div id="adContainer" style="text-align: center; margin-top: 2rem">
+        <img
+          id="adImage"
+          src="vehiculo_dekra.jpg"
+          style="
+            width: 300px;
+            height: auto;
+            border-radius: 8px;
+            transition: opacity 0.5s;
+          "
+          alt="Advertisement"
+        />
+      </div>
+    </div>
+
+    <script>
+      /* Part 2 (data) will go here */
+      /* ======================
+   Part 2 — Core Data
+====================== */
+
+      // Pronouns
+      const pronouns = {
+        en: {
+          I: "1s",
+          you: "2s",
+          he: "3s",
+          she: "3s",
+          we: "1p",
+          you_pl: "2p",
+          they: "3p",
+        },
+        es: {
+          yo: "1s",
+          tú: "2s",
+          él: "3s",
+          ella: "3s",
+          nosotros: "1p",
+          vosotros: "2p",
+          ellos: "3p",
+        },
+        fr: {
+          je: "1s",
+          tu: "2s",
+          il: "3s",
+          elle: "3s",
+          nous: "1p",
+          vous: "2p",
+          ils: "3p",
+        },
+        pt: {
+          eu: "1s",
+          tu: "2s",
+          ele: "3s",
+          ela: "3s",
+          nós: "1p",
+          vós: "2p",
+          eles: "3p",
+        },
+        de: {
+          ich: "1s",
+          du: "2s",
+          er: "3s",
+          sie: "3s",
+          wir: "1p",
+          ihr: "2p",
+          sie_pl: "3p",
+        },
+        it: {
+          io: "1s",
+          tu: "2s",
+          lui: "3s",
+          lei: "3s",
+          noi: "1p",
+          voi: "2p",
+          loro: "3p",
+        },
+        ru: {
+          я: "1s",
+          ты: "2s",
+          он: "3s",
+          она: "3s",
+          мы: "1p",
+          вы: "2p",
+          они: "3p",
+        },
+        zh: {
+          我: "1s",
+          你: "2s",
+          他: "3s",
+          她: "3s",
+          我们: "1p",
+          你们: "2p",
+          他们: "3p",
+        },
+        ja: {
+          私: "1s",
+          あなた: "2s",
+          彼: "3s",
+          彼女: "3s",
+          私たち: "1p",
+          あなたたち: "2p",
+          彼ら: "3p",
+        },
+        ko: {
+          나: "1s",
+          너: "2s",
+          그: "3s",
+          그녀: "3s",
+          우리: "1p",
+          너희: "2p",
+          그들: "3p",
+        },
+      };
+
+      // Expanded verbs (40+ each)
+      const verbs = {
+        en: [
+          "speak",
+          "eat",
+          "live",
+          "be",
+          "have",
+          "go",
+          "do",
+          "see",
+          "make",
+          "come",
+          "give",
+          "take",
+          "read",
+          "write",
+          "play",
+          "work",
+          "stay",
+          "bring",
+          "find",
+          "run",
+          "drink",
+          "sleep",
+          "study",
+          "buy",
+          "sell",
+          "drive",
+          "sing",
+          "dance",
+          "teach",
+          "learn",
+          "help",
+          "walk",
+          "think",
+          "know",
+          "open",
+          "close",
+          "love",
+          "like",
+          "want",
+          "need",
+        ],
+        es: [
+          "hablar",
+          "comer",
+          "vivir",
+          "ser",
+          "tener",
+          "pensar",
+          "poder",
+          "ir",
+          "hacer",
+          "venir",
+          "ver",
+          "dar",
+          "poner",
+          "salir",
+          "traer",
+          "conocer",
+          "decir",
+          "querer",
+          "jugar",
+          "leer",
+          "escribir",
+          "trabajar",
+          "estudiar",
+          "dormir",
+          "comprar",
+          "vender",
+          "manejar",
+          "cantar",
+          "bailar",
+          "enseñar",
+          "aprender",
+          "ayudar",
+          "caminar",
+          "saber",
+          "abrir",
+          "cerrar",
+          "amar",
+          "gustar",
+          "necesitar",
+        ],
+        fr: [
+          "parler",
+          "manger",
+          "vivre",
+          "être",
+          "avoir",
+          "aller",
+          "faire",
+          "venir",
+          "voir",
+          "prendre",
+          "donner",
+          "lire",
+          "écrire",
+          "jouer",
+          "travailler",
+          "rester",
+          "mettre",
+          "sortir",
+          "connaître",
+          "dire",
+          "dormir",
+          "acheter",
+          "vendre",
+          "chanter",
+          "danser",
+          "enseigner",
+          "apprendre",
+          "aider",
+          "marcher",
+          "penser",
+          "savoir",
+          "ouvrir",
+          "fermer",
+          "aimer",
+          "vouloir",
+          "devoir",
+          "pouvoir",
+        ],
+        pt: [
+          "falar",
+          "comer",
+          "viver",
+          "ser",
+          "ter",
+          "pensar",
+          "poder",
+          "ir",
+          "fazer",
+          "vir",
+          "ver",
+          "dar",
+          "pôr",
+          "sair",
+          "trazer",
+          "conhecer",
+          "dizer",
+          "querer",
+          "brincar",
+          "ler",
+          "escrever",
+          "trabalhar",
+          "estudar",
+          "dormir",
+          "comprar",
+          "vender",
+          "dirigir",
+          "cantar",
+          "dançar",
+          "ensinar",
+          "aprender",
+          "ajudar",
+          "andar",
+          "saber",
+          "abrir",
+          "fechar",
+          "amar",
+          "gostar",
+          "precisar",
+        ],
+        de: [
+          "machen",
+          "lernen",
+          "spielen",
+          "sein",
+          "haben",
+          "sehen",
+          "gehen",
+          "kommen",
+          "geben",
+          "nehmen",
+          "lesen",
+          "schreiben",
+          "sprechen",
+          "fahren",
+          "arbeiten",
+          "bleiben",
+          "bringen",
+          "finden",
+          "laufen",
+          "trinken",
+          "schlafen",
+          "studieren",
+          "kaufen",
+          "verkaufen",
+          "singen",
+          "tanzen",
+          "lehren",
+          "helfen",
+          "denken",
+          "wissen",
+          "öffnen",
+          "schließen",
+          "lieben",
+          "mögen",
+          "brauchen",
+        ],
+        it: [
+          "parlare",
+          "mangiare",
+          "vivere",
+          "essere",
+          "avere",
+          "andare",
+          "fare",
+          "venire",
+          "vedere",
+          "prendere",
+          "dare",
+          "leggere",
+          "scrivere",
+          "giocare",
+          "lavorare",
+          "restare",
+          "mettere",
+          "uscire",
+          "conoscere",
+          "dire",
+          "capire",
+          "finire",
+          "salire",
+          "scendere",
+          "comprare",
+          "vendere",
+          "cantare",
+          "ballare",
+          "insegnare",
+          "imparare",
+          "aiutare",
+          "camminare",
+          "pensare",
+          "sapere",
+          "aprire",
+          "chiudere",
+          "amare",
+          "piacere",
+          "volere",
+          "dovere",
+          "potere",
+        ],
+        ru: [
+          "говорить",
+          "быть",
+          "идти",
+          "делать",
+          "видеть",
+          "жить",
+          "есть",
+          "писать",
+          "читать",
+          "давать",
+          "брать",
+          "играть",
+          "работать",
+          "оставаться",
+          "приходить",
+          "ставить",
+          "выходить",
+          "знать",
+          "помогать",
+          "учить",
+          "учиться",
+          "покупать",
+          "продавать",
+          "петь",
+          "танцевать",
+          "думать",
+          "открывать",
+          "закрывать",
+          "бежать",
+          "пить",
+          "любить",
+          "хотеть",
+          "нуждаться",
+        ],
+        ja: [
+          "話す",
+          "食べる",
+          "いる",
+          "ある",
+          "行く",
+          "来る",
+          "する",
+          "見る",
+          "書く",
+          "住む",
+          "読む",
+          "飲む",
+          "働く",
+          "遊ぶ",
+          "与える",
+          "取る",
+          "走る",
+          "言う",
+          "買う",
+          "売る",
+          "教える",
+          "学ぶ",
+          "助ける",
+          "歩く",
+          "考える",
+          "知る",
+          "開ける",
+          "閉める",
+          "寝る",
+          "作る",
+          "愛する",
+          "欲しい",
+          "必要とする",
+        ],
+        ko: [
+          "말하다",
+          "먹다",
+          "이다",
+          "가다",
+          "오다",
+          "하다",
+          "보다",
+          "살다",
+          "쓰다",
+          "읽다",
+          "마시다",
+          "일하다",
+          "놀다",
+          "머물다",
+          "주다",
+          "받다",
+          "달리다",
+          "원하다",
+          "준비하다",
+          "가르치다",
+          "배우다",
+          "도와주다",
+          "걷다",
+          "생각하다",
+          "알다",
+          "열다",
+          "닫다",
+          "노래하다",
+          "춤추다",
+          "사랑하다",
+          "필요하다",
+        ],
+        zh: [
+          "说",
+          "吃",
+          "是",
+          "有",
+          "去",
+          "来",
+          "做",
+          "看",
+          "住",
+          "写",
+          "玩",
+          "工作",
+          "读",
+          "写作",
+          "给",
+          "拿",
+          "跑",
+          "喝",
+          "想",
+          "能",
+          "买",
+          "卖",
+          "教",
+          "学",
+          "帮助",
+          "走",
+          "知道",
+          "打开",
+          "关闭",
+          "睡觉",
+          "做饭",
+          "爱",
+          "喜欢",
+          "需要",
+        ],
+      };
+
+      // Irregulars (trimmed to key verbs)
+      const irregulars = {
+        en: {
+          be: {
+            "1s": "am",
+            "2s": "are",
+            "3s": "is",
+            "1p": "are",
+            "2p": "are",
+            "3p": "are",
+          },
+          have: {
+            "1s": "have",
+            "2s": "have",
+            "3s": "has",
+            "1p": "have",
+            "2p": "have",
+            "3p": "have",
+          },
+          do: {
+            "1s": "do",
+            "2s": "do",
+            "3s": "does",
+            "1p": "do",
+            "2p": "do",
+            "3p": "do",
+          },
+          go: {
+            "1s": "go",
+            "2s": "go",
+            "3s": "goes",
+            "1p": "go",
+            "2p": "go",
+            "3p": "go",
+          },
+        },
+        fr: {
+          être: {
+            "1s": "suis",
+            "2s": "es",
+            "3s": "est",
+            "1p": "sommes",
+            "2p": "êtes",
+            "3p": "sont",
+          },
+          avoir: {
+            "1s": "ai",
+            "2s": "as",
+            "3s": "a",
+            "1p": "avons",
+            "2p": "avez",
+            "3p": "ont",
+          },
+          aller: {
+            "1s": "vais",
+            "2s": "vas",
+            "3s": "va",
+            "1p": "allons",
+            "2p": "allez",
+            "3p": "vont",
+          },
+          faire: {
+            "1s": "fais",
+            "2s": "fais",
+            "3s": "fait",
+            "1p": "faisons",
+            "2p": "faites",
+            "3p": "font",
+          },
+        },
+        es: {
+          ser: {
+            "1s": "soy",
+            "2s": "eres",
+            "3s": "es",
+            "1p": "somos",
+            "2p": "sois",
+            "3p": "son",
+          },
+          tener: {
+            "1s": "tengo",
+            "2s": "tienes",
+            "3s": "tiene",
+            "1p": "tenemos",
+            "2p": "tenéis",
+            "3p": "tienen",
+          },
+          ir: {
+            "1s": "voy",
+            "2s": "vas",
+            "3s": "va",
+            "1p": "vamos",
+            "2p": "vais",
+            "3p": "van",
+          },
+          hacer: {
+            "1s": "hago",
+            "2s": "haces",
+            "3s": "hace",
+            "1p": "hacemos",
+            "2p": "hacéis",
+            "3p": "hacen",
+          },
+          venir: {
+            "1s": "vengo",
+            "2s": "vienes",
+            "3s": "viene",
+            "1p": "venimos",
+            "2p": "venís",
+            "3p": "vienen",
+          },
+          poder: {
+            "1s": "puedo",
+            "2s": "puedes",
+            "3s": "puede",
+            "1p": "podemos",
+            "2p": "podéis",
+            "3p": "pueden",
+          },
+        },
+        pt: {
+          ser: {
+            "1s": "sou",
+            "2s": "és",
+            "3s": "é",
+            "1p": "somos",
+            "2p": "sois",
+            "3p": "são",
+          },
+          ter: {
+            "1s": "tenho",
+            "2s": "tens",
+            "3s": "tem",
+            "1p": "temos",
+            "2p": "tendes",
+            "3p": "têm",
+          },
+          ir: {
+            "1s": "vou",
+            "2s": "vais",
+            "3s": "vai",
+            "1p": "vamos",
+            "2p": "ides",
+            "3p": "vão",
+          },
+          fazer: {
+            "1s": "faço",
+            "2s": "fazes",
+            "3s": "faz",
+            "1p": "fazemos",
+            "2p": "fazeis",
+            "3p": "fazem",
+          },
+          vir: {
+            "1s": "venho",
+            "2s": "vens",
+            "3s": "vem",
+            "1p": "vimos",
+            "2p": "vindes",
+            "3p": "vêm",
+          },
+        },
+        de: {
+          sein: {
+            "1s": "bin",
+            "2s": "bist",
+            "3s": "ist",
+            "1p": "sind",
+            "2p": "seid",
+            "3p": "sind",
+          },
+          haben: {
+            "1s": "habe",
+            "2s": "hast",
+            "3s": "hat",
+            "1p": "haben",
+            "2p": "habt",
+            "3p": "haben",
+          },
+          nehmen: {
+            "1s": "nehme",
+            "2s": "nimmst",
+            "3s": "nimmt",
+            "1p": "nehmen",
+            "2p": "nehmt",
+            "3p": "nehmen",
+          },
+          geben: {
+            "1s": "gebe",
+            "2s": "gibst",
+            "3s": "gibt",
+            "1p": "geben",
+            "2p": "gebt",
+            "3p": "geben",
+          },
+        },
+        it: {
+          essere: {
+            "1s": "sono",
+            "2s": "sei",
+            "3s": "è",
+            "1p": "siamo",
+            "2p": "siete",
+            "3p": "sono",
+          },
+          avere: {
+            "1s": "ho",
+            "2s": "hai",
+            "3s": "ha",
+            "1p": "abbiamo",
+            "2p": "avete",
+            "3p": "hanno",
+          },
+          andare: {
+            "1s": "vado",
+            "2s": "vai",
+            "3s": "va",
+            "1p": "andiamo",
+            "2p": "andate",
+            "3p": "vanno",
+          },
+          fare: {
+            "1s": "faccio",
+            "2s": "fai",
+            "3s": "fa",
+            "1p": "facciamo",
+            "2p": "fate",
+            "3p": "fanno",
+          },
+          venire: {
+            "1s": "vengo",
+            "2s": "vieni",
+            "3s": "viene",
+            "1p": "veniamo",
+            "2p": "venite",
+            "3p": "vengono",
+          },
+        },
+        ru: {
+          быть: {
+            "1s": "есть",
+            "2s": "есть",
+            "3s": "есть",
+            "1p": "есть",
+            "2p": "есть",
+            "3p": "есть",
+          },
+        },
+        zh: {},
+        ja: {},
+        ko: {},
+      };
+
+      // Regular endings (simplified present tense)
+      const endings = {
+        en: { "3s": "s" },
+        fr: {
+          "-er": {
+            "1s": "e",
+            "2s": "es",
+            "3s": "e",
+            "1p": "ons",
+            "2p": "ez",
+            "3p": "ent",
+          },
+        },
+        de: {
+          "-en": {
+            "1s": "e",
+            "2s": "st",
+            "3s": "t",
+            "1p": "en",
+            "2p": "t",
+            "3p": "en",
+          },
+        },
+        es: {
+          "-ar": {
+            "1s": "o",
+            "2s": "as",
+            "3s": "a",
+            "1p": "amos",
+            "2p": "áis",
+            "3p": "an",
+          },
+          "-er": {
+            "1s": "o",
+            "2s": "es",
+            "3s": "e",
+            "1p": "emos",
+            "2p": "éis",
+            "3p": "en",
+          },
+          "-ir": {
+            "1s": "o",
+            "2s": "es",
+            "3s": "e",
+            "1p": "imos",
+            "2p": "ís",
+            "3p": "en",
+          },
+        },
+        pt: {
+          "-ar": {
+            "1s": "o",
+            "2s": "as",
+            "3s": "a",
+            "1p": "amos",
+            "2p": "ais",
+            "3p": "am",
+          },
+          "-er": {
+            "1s": "o",
+            "2s": "es",
+            "3s": "e",
+            "1p": "emos",
+            "2p": "eis",
+            "3p": "em",
+          },
+          "-ir": {
+            "1s": "o",
+            "2s": "es",
+            "3s": "e",
+            "1p": "imos",
+            "2p": "is",
+            "3p": "em",
+          },
+        },
+        it: {
+          "-are": {
+            "1s": "o",
+            "2s": "i",
+            "3s": "a",
+            "1p": "iamo",
+            "2p": "ate",
+            "3p": "ano",
+          },
+          "-ere": {
+            "1s": "o",
+            "2s": "i",
+            "3s": "e",
+            "1p": "iamo",
+            "2p": "ete",
+            "3p": "ono",
+          },
+          "-ire": {
+            "1s": "o",
+            "2s": "i",
+            "3s": "e",
+            "1p": "iamo",
+            "2p": "ite",
+            "3p": "ono",
+          },
+        },
+        ru: {
+          "-ть": {
+            "1s": "ю",
+            "2s": "ешь",
+            "3s": "ет",
+            "1p": "ем",
+            "2p": "ете",
+            "3p": "ют",
+          },
+        },
+      };
+      /* ======================
+   Part 3 — Game Engine
+====================== */
+
+      // Attempt log
+      let attempts = [];
+
+      // Game state
+      let score = 0;
+      let streak = 0;
+      let bestScore = localStorage.getItem("bestScore") || 0;
+      let sessionSeconds = 300; // 5 minutes
+      let timeLeft = sessionSeconds;
+      let timerId = null;
+
+      // Voices
+      const langVoices = {
+        es: "es-ES",
+        pt: "pt-PT",
+        de: "de-DE",
+        en: "en-US",
+        zh: "zh-CN",
+        fr: "fr-FR",
+        ja: "ja-JP",
+        ru: "ru-RU",
+        ko: "ko-KR",
+        it: "it-IT",
+      };
+
+      // Messages
+      const messages = {
+        ok: [
+          "🔥 You nailed it!",
+          "🌟 Perfect form!",
+          "⚡ Boss move!",
+          "🎯 Clean hit!",
+          "💥 Crisp and clean!",
+        ],
+        wrong: [
+          "😅 Close! Try again.",
+          "💡 You’re learning.",
+          "🚀 Keep going!",
+          "🔁 One more shot!",
+          "🛠️ Adjust and strike again!",
+        ],
+        end: [
+          "⏰ Time’s up! Epic run.",
+          "⌛ Session complete. Solid effort!",
+          "🕰️ Ritual closed. Bravo!",
+        ],
+      };
+
+      // Helpers
+      function formatTime(sec) {
+        const m = Math.floor(sec / 60),
+          s = sec % 60;
+        return (
+          m.toString().padStart(2, "0") + ":" + s.toString().padStart(2, "0")
+        );
+      }
+      function updateHUD() {
+        document.getElementById("score").textContent = "Score: " + score;
+        document.getElementById("streak").textContent = "Streak: " + streak;
+        document.getElementById("timer").textContent =
+          "Time left: " + formatTime(timeLeft);
+        document.getElementById("best").textContent = "Best: " + bestScore;
+      }
+      function startGlobalTimer() {
+        clearInterval(timerId);
+        timeLeft = sessionSeconds;
+        updateHUD();
+        timerId = setInterval(() => {
+          timeLeft--;
+          updateHUD();
+          if (timeLeft <= 0) {
+            clearInterval(timerId);
+            endSession();
+          }
+        }, 1000);
+      }
+      function speak(text, langCode) {
+        if (!window.speechSynthesis) return;
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = langCode;
+        try {
+          speechSynthesis.cancel();
+        } catch (e) {}
+        speechSynthesis.speak(utter);
+      }
+      function addPoints(isCorrect) {
+        if (isCorrect) {
+          score += 10;
+          streak++;
+          if (streak % 5 === 0) score += 5;
+        } else {
+          streak = 0;
+        }
+        updateHUD();
+      }
+
+      // Conjugation helpers
+      function classifyVerb(lang, lemma) {
+        if (lang === "fr" && lemma.endsWith("er")) return "-er";
+        if (lang === "de" && lemma.endsWith("en")) return "-en";
+        if ((lang === "es" || lang === "pt") && lemma.length >= 2) {
+          if (lemma.endsWith("ar")) return "-ar";
+          if (lemma.endsWith("er")) return "-er";
+          if (lemma.endsWith("ir")) return "-ir";
+        }
+        if (lang === "it" && lemma.length >= 3) {
+          if (lemma.endsWith("are")) return "-are";
+          if (lemma.endsWith("ere")) return "-ere";
+          if (lemma.endsWith("ire")) return "-ire";
+        }
+        if (lang === "ru" && lemma.endsWith("ть")) return "-ть";
+        return null;
+      }
+      function conjugate(lang, lemma, person) {
+        if (!person) return lemma;
+        const irrMap = irregulars[lang] && irregulars[lang][lemma];
+        if (irrMap && irrMap[person]) return irrMap[person];
+        if (lang === "en") {
+          if (person === "3s" && !["be", "have", "do", "go"].includes(lemma))
+            return lemma + "s";
+          return lemma;
+        }
+        if (lang === "zh" || lang === "ja" || lang === "ko") return lemma;
+        const cls = classifyVerb(lang, lemma);
+        if (!cls || !endings[lang][cls]) return lemma;
+        let base = lemma;
+        if (lang === "it") base = lemma.slice(0, -3);
+        else if (["de", "es", "pt", "fr"].includes(lang))
+          base = lemma.slice(0, -2);
+        else if (lang === "ru") base = lemma.slice(0, -2);
+        const suffix = endings[lang][cls][person] || "";
+        return base + suffix;
+      }
+
+      // UI actions
+      function loadRound() {
+        const lang = document.getElementById("language").value;
+        const subjSel = document.getElementById("subject");
+        const verbSel = document.getElementById("verb");
+        subjSel.innerHTML = "";
+        verbSel.innerHTML = "";
+        Object.keys(pronouns[lang]).forEach((p) => {
+          const opt = document.createElement("option");
+          opt.value = p;
+          opt.textContent = p.replace("_pl", "");
+          subjSel.appendChild(opt);
+        });
+        verbs[lang].forEach((v) => {
+          const opt = document.createElement("option");
+          opt.value = v;
+          opt.textContent = v;
+          verbSel.appendChild(opt);
+        });
+        document.getElementById("verbForm").value = "";
+        document.getElementById("result").textContent = "";
+        document.getElementById("result").className = "";
+        document.getElementById("status").textContent = "Session: Running";
+      }
+
+      // Check answer
+      function check() {
+        if (timeLeft <= 0) return;
+        const lang = document.getElementById("language").value;
+        const subj = document.getElementById("subject").value;
+        const lemma = document.getElementById("verb").value;
+        const form = document.getElementById("verbForm").value.trim();
+        const person = pronouns[lang][subj];
+        const correct = conjugate(lang, lemma, person);
+        const result = document.getElementById("result");
+        result.className = "";
+        if (!person) {
+          result.textContent = "⚠️ Person mapping not found.";
+          result.className = "wrong";
+          streak = 0;
+          updateHUD();
+          return;
+        }
+        const isCorrect = form === correct;
+        const msgPool = isCorrect ? messages["ok"] : messages["wrong"];
+        const msg = msgPool[Math.floor(Math.random() * msgPool.length)];
+        if (isCorrect) {
+          result.textContent = "✅ " + subj + " " + form + " — " + msg;
+          result.className = "ok";
+        } else {
+          result.textContent =
+            "❌ Should be: " + subj + " " + correct + " — " + msg;
+          result.className = "wrong";
+        }
+        addPoints(isCorrect);
+        // Log attempt
+        attempts.push({
+          subject: subj,
+          verb: lemma,
+          user: form,
+          correct: correct,
+          result: isCorrect ? "✅" : "❌",
+        });
+        // Speak
+        const voiceLang = langVoices[lang] || "en-US";
+        speak(subj + " " + correct, voiceLang);
+        document.getElementById("verbForm").value = "";
+      }
+
+      // End session
+      function endSession() {
+        if (score > bestScore) {
+          bestScore = score;
+          localStorage.setItem("bestScore", bestScore);
+        }
+        const result = document.getElementById("result");
+        const msg =
+          messages["end"][Math.floor(Math.random() * messages["end"].length)];
+        result.textContent =
+          msg + " Final Score: " + score + " — Best: " + bestScore;
+        result.className = "ok";
+        document.getElementById("verbForm").disabled = true;
+        document.getElementById("checkBtn").disabled = true;
+        document.getElementById("status").textContent = "Session: Finished";
+        renderSummary();
+      }
+      /* ======================
+   Part 4 — Summary + Export
+====================== */
+
+      // Render summary table at end of session
+      function renderSummary() {
+        const summaryDiv = document.getElementById("summary");
+        summaryDiv.innerHTML = "";
+        if (attempts.length === 0) return;
+
+        let html = "<h3>Session Summary</h3>";
+        html +=
+          "<table><thead><tr><th>#</th><th>Subject</th><th>Verb</th><th>Your Answer</th><th>Correct</th><th>Result</th></tr></thead><tbody>";
+        attempts.forEach((a, i) => {
+          html += `<tr><td>${i + 1}</td><td>${a.subject}</td><td>${
+            a.verb
+          }</td><td>${a.user || "-"}</td><td>${a.correct}</td><td>${
+            a.result
+          }</td></tr>`;
+        });
+        html += "</tbody></table>";
+        summaryDiv.innerHTML = html;
+      }
+
+      // Export summary as PDF
+      function exportPDF() {
+        if (attempts.length === 0) {
+          alert("No attempts to export yet.");
+          return;
+        }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(14);
+        doc.text("Multilingual Sentence Builder — Session Report", 10, 15);
+        doc.setFontSize(11);
+        doc.text(
+          "Final Score: " +
+            score +
+            " | Best: " +
+            bestScore +
+            " | Streak: " +
+            streak,
+          10,
+          25
+        );
+
+        let y = 35;
+        doc.setFontSize(10);
+        doc.text("Attempts:", 10, y);
+        y += 6;
+
+        attempts.forEach((a, i) => {
+          const line = `${i + 1}. ${a.subject} ${a.verb} | Your: ${
+            a.user || "-"
+          } | Correct: ${a.correct} | ${a.result}`;
+          doc.text(line, 10, y);
+          y += 6;
+          if (y > 280) {
+            doc.addPage();
+            y = 20;
+          }
+        });
+
+        doc.save("session_report.pdf");
+      }
+
+      // Init on load
+      window.onload = () => {
+        loadRound();
+        startGlobalTimer();
+        bestScore = localStorage.getItem("bestScore") || 0;
+        updateHUD();
+      };
+      /* ======================
+   Part 5 — Rotating Ads
+====================== */
+      const adImages = [
+        "vehiculo_dekra.jpg",
+        "clases_manejo.jpg",
+        "Espanol.jpg",
+        "impresiones.jpg",
+        "LAL.jpg",
+        "ingles.jpg",
+        "necesita_pagina_web.png",
+        "ejercicios_linea.png",
+      ];
+      let adIndex = 0;
+      function rotateAdImages() {
+        const adImg = document.getElementById("adImage");
+        adImg.style.opacity = 0;
+        setTimeout(() => {
+          adImg.src = adImages[adIndex];
+          adImg.style.opacity = 1;
+          adIndex = (adIndex + 1) % adImages.length;
+        }, 500);
+      }
+      setInterval(rotateAdImages, 6000);
+    </script>
+  </body>
+</html>
